@@ -21,6 +21,7 @@ from io import open
 from getpass import getpass
 import logging
 import six
+import vdf
 
 from eventemitter import EventEmitter
 from steam.enums import EResult, EOSType, EPersonaState
@@ -362,6 +363,28 @@ class SteamClient(CMClient, BuiltinBase):
         if response is None:
             return None
         return response[0].body
+    
+    def request_rich_presence(self, steamids, appid):
+        """Request rich presence
+        :param  steamids: list of steam ids
+        :type   steamids: list
+        :param  appid: app ID of the game in which there is an activity
+        :type   appid: int
+        """        
+        m = MsgProto(EMsg.ClientRichPresenceRequest)
+        m.body.steamid_request.extend(steamids)
+        m.header.routing_appid=appid
+        response = self.send_message_and_wait(m, EMsg.ClientRichPresenceInfo)
+        if response:
+            data = {}
+            for rp in response.rich_presence:
+                kvs = vdf.binary_loads(rp.rich_presence_kv)
+                if kvs:
+                    data[rp.steamid_user] = kvs['RP']
+                    return data    
+        else:
+            return None        
+
 
     def send_message_and_wait(self, message, response_emsg, body_params=None, timeout=None, raises=False):
         """Send a message to CM and wait for a defined answer.
